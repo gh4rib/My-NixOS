@@ -9,7 +9,7 @@ The core feature of this setup is the integration of the [CachyOS Kernel](https:
 * **CachyOS Kernels:** Utilizing the `xddxdd/nix-cachyos-kernel` repository.
 * **LTO & v4 Optimizations:** Aggressive compiler-level and hardware-level optimizations for maximum responsiveness and throughput.
 * **Boot Menu Specialisations:** Employs NixOS `specialisation` to generate multiple boot entries. If an experimental kernel fails, stable fallback kernels are just a reboot away.
-* **Pre-Compiled Binaries:** Configured to pull from official binary caches (`lantian` and `garnix`) to avoid hours of local compilation.
+* **Pre-Compiled Binaries:** Configured to pull from official binary caches (`lantian`) to avoid hours of local compilation.
 
 ## ⚠️ Hardware Warning
 The default kernel in this configuration targets the **`x86_64-v4`** microarchitecture tier. 
