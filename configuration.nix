@@ -12,7 +12,13 @@
 
   # --- Bootloader Configuration (Limine) ---
   boot.loader.systemd-boot.enable = false;
-  boot.loader.grub.enable = false;
+
+#  boot.loader.grub.enable = true;
+#  boot.loader.grub.efiSupport = true;
+#  boot.loader.limine.enable = true;
+#  boot.loader.grub.device = "nodev";
+#  boot.loader.grub.useOSProber = false;
+
   boot.loader.limine.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
   boot.loader.efi.efiSysMountPoint = "/boot/efi";
@@ -22,6 +28,26 @@
 
   # --- Official Latest Kernel ---
   boot.kernelPackages = pkgs.linuxPackages_latest;
+  boot.protectKernelImage = true;
+
+  boot.kernelParams = [
+    "splash"
+    "quit"
+#    "debugfs=off"
+#    "init_on_alloc=1"
+#    "init_on_free=1"
+#    "page_alloc.shuffle=1"
+#    "slab_nomerge"
+#    "pti=on"
+#    "kaslr"
+#    "randomize_kstack_offset=on"
+#    "vsyscall=none"
+  ];
+  boot.kernel.sysctl = {
+    "kernel.kptr_restrict" = 2;
+    "kernel.dmesg_restrict" = 1;
+#    "kernel.unprivileged_bpf_disabled" = 1;
+  };
 
   # --- Nix Package Manager Settings ---
   nix.settings.substituters = lib.mkForce [ 
