@@ -1,4 +1,4 @@
-# 🛡️ NixSec-Virt: The Declarative Analyst Workstation
+# 🛡️ NixSec: The Declarative Cybersecurity Analyst Workstation
 
 A production-ready, highly compartmentalized NixOS configuration engineered specifically for cybersecurity analysts, malware researchers, and security engineers.
 
@@ -8,7 +8,7 @@ This configuration transforms a standard laptop into a reproducible, full-stack 
 
 Security analysis requires strict isolation. Traditional Linux distributions suffer from "dependency rot" when juggling multiple virtualization toolchains, proprietary drivers, and isolated environments.
 
-**NixSec-Virt** solves this by treating the entire analyst operating system as code. It leverages an Intel/NVIDIA hybrid graphics stack (with explicitly pinned drivers) and deploys an entire lab environment natively, ensuring that your tools never conflict and your host OS remains mathematically reproducible.
+**NixSec** solves this by treating the entire analyst operating system as code. It leverages an Intel/NVIDIA hybrid graphics stack (with explicitly pinned drivers) and deploys an entire lab environment natively, ensuring that your tools never conflict and your host OS remains mathematically reproducible.
 
 ## 🏗️ The Virtualization Arsenal
 
