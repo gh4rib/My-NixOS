@@ -10,6 +10,14 @@ Security analysis requires strict isolation. Traditional Linux distributions suf
 
 **NixSec** solves this by treating the entire analyst operating system as code. It leverages an Intel/NVIDIA hybrid graphics stack (with explicitly pinned drivers) and deploys an entire lab environment natively, ensuring that your tools never conflict and your host OS remains mathematically reproducible.
 
+## 🔐 The Qubes OS Paradigm: Security by Compartmentalization
+
+Inspired by the architecture of **Qubes OS**, NixSec empowers analysts to implement strict security-by-compartmentalization. By utilizing the integrated virtualization stack, you can create multiple, tightly isolated Virtual Machines (VMs) and containers to segregate your digital life.
+
+Analysts can easily separate their personal daily routines, corporate communications, and high-risk malware detonation labs into distinct environments. This paradigm ensures that even if a payload successfully executes within a research VM, your core host system and personal data remain completely protected.
+
+---
+
 ## 🏗️ The Virtualization Arsenal
 
 This system comes pre-configured with a multi-tiered virtualization stack, allowing you to choose the exact level of isolation required for your threat model:
@@ -55,6 +63,7 @@ Run the following command to find your GPU addresses:
 
 ```bash
 lspci | grep -i vga
+
 ```
 
 Open `configuration.nix` and update the `prime` block, converting the output to Nix format (e.g., `00:02.0` becomes `PCI:0@0:2:0`):
@@ -62,6 +71,7 @@ Open `configuration.nix` and update the `prime` block, converting the output to 
 ```nix
 intelBusId = "PCI:0@0:2:0";
 nvidiaBusId = "PCI:1@0:0:0";
+
 ```
 
 ### 2. Build the System
@@ -70,6 +80,7 @@ Apply the configuration to your host:
 
 ```bash
 sudo nixos-rebuild switch --flake .#nixos
+
 ```
 
 ### 3. Initialize the Mobile Lab (Waydroid)
@@ -78,7 +89,10 @@ Once rebooted into the new configuration, initialize the Android environment wit
 
 ```bash
 sudo waydroid init -s GAPPS -f
+
 ```
+
+---
 
 ## 🧠 Specialisation: The Xen "Red Pill" Mode
 
@@ -93,18 +107,17 @@ In this mode:
 
 This effectively gives you a dual-personality workstation: a hybrid-graphics Wayland desktop for daily analysis, and a strict Xen hypervisor for advanced compartmentalization research.
 
+---
 
-Since the popular Chaotic Nyx project was suddenly archived and killed in December 2025, the `xddxdd/nix-cachyos-kernel` repository has become the absolute gold standard for getting these highly tuned kernels on NixOS.
+## ⚡ Custom CachyOS Kernel Integration
 
-Because your 10th Gen Ice Lake CPU natively supports AVX-512 instructions, compiling the kernel with the `x86_64-v4` optimizations (like you specified in your original file) will yield fantastic performance improvements.
+Since the popular Chaotic Nyx project was archived, the `xddxdd/nix-cachyos-kernel` repository has become the gold standard for getting highly tuned kernels on NixOS. Because this setup is optimized for CPUs that natively support AVX-512 instructions, compiling the kernel with `x86_64-v4` optimizations yields fantastic performance improvements.
 
-To safely inject these custom kernels into your setup without breaking the rest of your system, you have to split the configuration into two parts: adding the Flake input, and defining the boot menu specialisations.
+To safely inject these custom kernels without breaking the rest of your system, the configuration splits the process into two parts: adding the Flake input, and defining the boot menu specialisations.
 
 ### Step 1: Update `flake.nix` (The Input & Overlay)
 
-You must first tell your Nix system where to fetch the CachyOS packages from and apply them as an "overlay" over your standard packages.
-
-Add the `nix-cachyos-kernel` input to your `flake.nix`, and make sure to use the `release` branch so you actually hit the binary cache (saving you from compiling a kernel for hours!).
+You must tell your Nix system where to fetch the CachyOS packages from and apply them as an overlay. Add the `nix-cachyos-kernel` input to your `flake.nix`, ensuring you use the `release` branch to hit the binary cache.
 
 ```nix
 {
@@ -137,11 +150,7 @@ Add the `nix-cachyos-kernel` input to your `flake.nix`, and make sure to use the
 
 ### Step 2: Update `configuration.nix` (The Specialisations)
 
-Now that `pkgs.cachyosKernels` exists in your system, you can add your custom boot entries back.
-
-Scroll down to the very bottom of your `configuration.nix`. You already have one specialisation for `xen-nouveau`. You just need to merge your CachyOS entries into that exact same block.
-
-Replace your existing `specialisation = { ... }` block with this combined one:
+Now that `pkgs.cachyosKernels` exists in your system, merge your custom boot entries into the existing `specialisation` block at the bottom of your configuration:
 
 ```nix
   # --- Boot Specialisations ---
@@ -180,13 +189,13 @@ Replace your existing `specialisation = { ... }` block with this combined one:
 
 ```
 
-### Important Cache Warning
+### ⚠️ Important Cache Warning
 
-You already have `[https://attic.xuyh0120.win/lantian](https://attic.xuyh0120.win/lantian)` explicitly defined in your `nix.settings.substituters` (which is the correct binary cache for the xddxdd kernels).
+Ensure `https://attic.xuyh0120.win/lantian` is explicitly defined in your `nix.settings.substituters`.
 
-However, NixOS evaluates caches *before* it tries to download the kernel. If this is your first time enabling these kernels, it is highly recommended to run the rebuild command **twice**:
+NixOS evaluates caches *before* downloading the kernel. If this is your first time enabling these kernels, it is highly recommended to run the rebuild command **twice**:
 
 1. Run it once on your standard setup so NixOS registers the new Lantian binary cache keys.
-2. Run it again to actually pull the CachyOS kernels.
+2. Run it again to pull the compiled CachyOS kernels.
 
-If you try to build it immediately and see it start compiling `gcc` or `linux`, cancel the build (`Ctrl+C`), verify your substituters are active, and try again!
+*(If you try to build immediately and see it start compiling `gcc` or `linux` from scratch, cancel the build (`Ctrl+C`), verify your substituters are active, and try again!)*
