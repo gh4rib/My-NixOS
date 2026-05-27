@@ -2,19 +2,30 @@
 
 A production-ready, highly compartmentalized NixOS configuration engineered specifically for cybersecurity analysts, malware researchers, and security engineers.
 
-This configuration transforms a standard laptop into a reproducible, full-stack virtualization lab. By combining the declarative power of NixOS with a massive array of hypervisors and container runtimes, it enables analysts to simulate complex network topologies, safely detonate malware, and reverse-engineer mobile applications—all from a single, immutable host system.
+This configuration transforms a standard laptop into a reproducible, full-stack virtualization lab. By combining the declarative power of NixOS with a massive array of hypervisors, strict kernel hardening, and container runtimes, it enables analysts to simulate complex network topologies, safely detonate malware, and reverse-engineer mobile applications—all from a single, immutable host system.
 
 ## 🎯 Why This Exists
 
-Security analysis requires strict isolation. Traditional Linux distributions suffer from "dependency rot" when juggling multiple virtualization toolchains, proprietary drivers, and isolated environments.
+Security analysis requires strict isolation and defense-in-depth. Traditional Linux distributions suffer from "dependency rot" when juggling multiple virtualization toolchains, proprietary drivers, and isolated environments, while often leaving the host kernel exposed.
 
-**NixSec** solves this by treating the entire analyst operating system as code. It leverages an Intel/NVIDIA hybrid graphics stack (with explicitly pinned drivers) and deploys an entire lab environment natively, ensuring that your tools never conflict and your host OS remains mathematically reproducible.
+**NixSec** solves this by treating the entire analyst operating system as code. It leverages an Intel/NVIDIA hybrid graphics stack, deploys an entire lab environment natively, and enforces surgical kernel hardening that protects the host OS without breaking your hypervisors.
 
 ## 🔐 The Qubes OS Paradigm: Security by Compartmentalization
 
 Inspired by the architecture of **Qubes OS**, NixSec empowers analysts to implement strict security-by-compartmentalization. By utilizing the integrated virtualization stack, you can create multiple, tightly isolated Virtual Machines (VMs) and containers to segregate your digital life.
 
 Analysts can easily separate their personal daily routines, corporate communications, and high-risk malware detonation labs into distinct environments. This paradigm ensures that even if a payload successfully executes within a research VM, your core host system and personal data remain completely protected.
+
+---
+
+## 🛡️ Defense-in-Depth: Host Hardening
+
+To prevent container breakouts and host compromise during malware analysis, this configuration applies strict global security policies that remain fully compatible with your virtualization stack:
+
+* **Memory Sanitization:** Enforces `init_on_alloc=1` and `init_on_free=1` to eliminate use-after-free vulnerabilities and heap data leaks.
+* **Information Leak Prevention:** Hides kernel pointers (`kptr_restrict=2`), restricts `dmesg` access, and completely disables unprivileged eBPF execution.
+* **Network Stack Lockdown:** Enforces strict Reverse Path Filtering (`rp_filter=1`) to drop spoofed packets and ignores rogue ICMP redirects to prevent the host from being manipulated by simulated network attacks.
+* **Exploit Mitigation:** Randomizes kernel stack offsets, shuffles page allocator freelists, and forces Page Table Isolation (PTI).
 
 ---
 
@@ -28,12 +39,12 @@ This system comes pre-configured with a multi-tiered virtualization stack, allow
 
 ### 2. High-Performance Hardware Virtualization (Type-2)
 
-* **KVM / QEMU (Libvirt):** The default workhorse for malware detonation and deploying Intrusion Detection Systems (IDS). Pre-configured with TPM 2.0 (swtpm) for testing modern Windows 11 payloads or Secure Boot bypasses.
+* **KVM / QEMU (Libvirt):** The default workhorse for malware detonation and deploying Intrusion Detection Systems (IDS). Pre-configured with TPM 2.0 (swtpm) for testing modern payloads or Secure Boot bypasses.
 * **VMware Workstation & VirtualBox:** Natively supported and isolated for analyzing legacy enterprise OVA/OVF templates or running proprietary security appliances.
 
 ### 3. High-Density Network Simulation (System Containers)
 
-* **Incus (LXD Fork):** Pre-seeded with a custom `incusbr0` NAT bridge and directory-backed storage. Perfect for spinning up dozens of lightweight Linux nodes to simulate complex topologies (like vehicular ad-hoc networks or enterprise Active Directory segments) with near-zero overhead.
+* **Incus (LXD Fork):** Pre-seeded with a custom `incusbr0` NAT bridge and directory-backed storage. Perfect for spinning up dozens of lightweight Linux nodes to simulate complex topologies with near-zero overhead.
 * **LXC / LXCFS:** Core kernel-level isolation for system containers.
 
 ### 4. Microservices & Application Security
@@ -42,15 +53,29 @@ This system comes pre-configured with a multi-tiered virtualization stack, allow
 
 ### 5. Mobile Emulation
 
-* **Waydroid:** A complete, hardware-accelerated Android environment running natively on Wayland. Designed for dynamic APK analysis, intercepting mobile TLS traffic, and reverse-engineering Android malware without needing a physical test device.
+* **Waydroid:** A complete, hardware-accelerated Android environment running natively on Wayland. Designed for dynamic APK analysis and reverse-engineering Android malware.
 
 ---
 
 ## 💻 Hardware Architecture & Optimization
 
 * **Wayland First:** Fully configured with `xdg-desktop-portal` and Ozone environment variables to enforce native Wayland rendering for modern applications, minimizing the X11 attack surface.
-* **NVIDIA PRIME Offload:** Runs the desktop securely on the Intel iGPU to preserve battery life, while exposing the NVIDIA GPU via an explicit offload wrapper. Perfect for executing localized, GPU-accelerated workloads (e.g., Hashcat cracking or training Deep Learning anomaly detection models) only when requested.
+* **NVIDIA PRIME Offload:** Runs the desktop securely on the Intel iGPU to preserve battery life, while exposing the NVIDIA GPU via an explicit offload wrapper. Perfect for executing localized, GPU-accelerated workloads (e.g., Hashcat cracking) only when requested.
 * **Legacy Hardware Support:** Explicitly pinned to the `legacy_580` NVIDIA branch and `intel-compute-runtime-legacy1` to ensure perfect OpenCL and CUDA functionality on Gen 10/11 Intel architectures and Maxwell-based GPUs.
+
+---
+
+## 🧠 Specialisations: Tactical Boot Modes
+
+When booting your machine, the Limine bootloader will present several secondary NixOS entries, allowing you to instantly morph your workstation's architecture based on your current mission.
+
+### Mode 1: The Xen "Red Pill" (Type-1 Isolation)
+
+In this mode, the Type-1 Xen Hypervisor takes over the hardware. The proprietary NVIDIA stack is stripped out in favor of the open-source `nouveau` driver, and out-of-tree hypervisors (VMware/VirtualBox) are disabled to prevent kernel module conflicts, leaving you with a pristine `Dom0` for strict compartmentalization research.
+
+### Mode 2: Maximum Hardened Workstation
+
+Reboots the system using the upstream `linuxPackages_hardened` kernel patchset. Because out-of-tree closed-source hypervisors (VMware/VirtualBox) fail to compile against these hardened structures, they are automatically dropped. However, native Type-2 engines (KVM, Incus, Docker, and Podman) remain fully operational, giving you a maximally defensive fortress for detonating highly evasive threats.
 
 ---
 
@@ -91,21 +116,6 @@ Once rebooted into the new configuration, initialize the Android environment wit
 sudo waydroid init -s GAPPS -f
 
 ```
-
----
-
-## 🧠 Specialisation: The Xen "Red Pill" Mode
-
-When booting your machine, the Limine bootloader will present a secondary NixOS entry. Selecting this will boot the system with the Xen specialisation.
-
-In this mode:
-
-1. The Type-1 Xen Hypervisor takes over the hardware.
-2. The proprietary NVIDIA stack is stripped out.
-3. The open-source `nouveau` driver is injected.
-4. VMware, VirtualBox, and Waydroid are disabled to prevent kernel module conflicts.
-
-This effectively gives you a dual-personality workstation: a hybrid-graphics Wayland desktop for daily analysis, and a strict Xen hypervisor for advanced compartmentalization research.
 
 ---
 
@@ -156,34 +166,18 @@ Now that `pkgs.cachyosKernels` exists in your system, merge your custom boot ent
   # --- Boot Specialisations ---
   specialisation = {
     
-    # 1. The Compartmentalized Hypervisor Mode
-    xen-nouveau.configuration = {
-      system.nixos.tags = [ "xen-nouveau" ];
-      virtualisation.xen.enable = true;
-      virtualisation.xen.boot.params = [ "nestedhvm=1" ];
-      virtualisation.virtualbox.host.enable = lib.mkForce false;
-      virtualisation.vmware.host.enable = lib.mkForce false;
-      virtualisation.waydroid.enable = lib.mkForce false;
-      services.xserver.videoDrivers = lib.mkForce [ "modesetting" "nouveau" ];
-      hardware.enableRedistributableFirmware = true;
-    };
+    # [ ... Xen and Hardened specialisations remain here ... ]
 
-    # 2. CachyOS BORE Scheduler + LTO + AVX512 (v4)
-    cachyos-bore-lto.configuration = {
-      system.nixos.tags = [ "cachyos-bore-lto" ];
-      boot.kernelPackages = lib.mkForce pkgs.cachyosKernels.linuxPackages-cachyos-bore-lto-x86_64-v4;
-    };
-
-    # 3. CachyOS BORE Scheduler + AVX512 (v4)
+    # CachyOS BORE Scheduler + AVX512 (v4)
     cachyos-bore.configuration = {
       system.nixos.tags = [ "cachyos-bore" ];
       boot.kernelPackages = lib.mkForce pkgs.cachyosKernels.linuxPackages-cachyos-bore-x86_64-v4;
     };
 
-    # 4. CachyOS EEVDF (Latest) + LTO + AVX512 (v4)
+    # CachyOS EEVDF (Latest) + AVX512 (v4)
     cachyos-latest-lto.configuration = {
-      system.nixos.tags = [ "cachyos-latest-lto" ];
-      boot.kernelPackages = lib.mkForce pkgs.cachyosKernels.linuxPackages-cachyos-latest-lto-x86_64-v4;
+      system.nixos.tags = [ "cachyos-latest" ];
+      boot.kernelPackages = lib.mkForce pkgs.cachyosKernels.linuxPackages-cachyos-latest-x86_64-v4;
     };
   };
 
