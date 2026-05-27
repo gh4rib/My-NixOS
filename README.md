@@ -152,7 +152,9 @@ Because you are building a **full-stack virtualization lab**, you must be incred
 **The Strategy:** Let the hypervisors run with the high privileges they need. Focus your `systemd` host hardening exclusively on **network-facing services** (like SSH, Syncthing, or custom web servers) and **automated parsers** that interact with untrusted malware data on the host.
 
 
-Please review these links to get some additional information about them: [link1](https://github.com/klaver/sysctl), [link2](https://obscurix.github.io/security/kernel-hardening.html), [link3](https://docs.rockylinux.org/10/guides/security/systemd_hardening/)
+Please review these links to get some additional information about them: [link1](https://github.com/klaver/sysctl), [link2](https://obscurix.github.io/security/kernel-hardening.html), [link3](https://docs.rockylinux.org/10/guides/security/systemd_hardening/).
+
+About **secureboot** and **Disk Encryption** I will add their sections soon!
 
 ---
 
