@@ -73,7 +73,7 @@ When booting your machine, the Limine bootloader will present several secondary 
 
 In this mode, the Type-1 Xen Hypervisor takes over the hardware. The proprietary NVIDIA stack is stripped out in favor of the open-source `nouveau` driver, and out-of-tree hypervisors (VMware/VirtualBox) are disabled to prevent kernel module conflicts, leaving you with a pristine `Dom0` for strict compartmentalization research.
 
-### Mode 2: Maximum Hardened Workstation
+### Mode 2: Hardened Kernel Workstation
 
 Reboots the system using the upstream `linuxPackages_hardened` kernel patchset. Because out-of-tree closed-source hypervisors (VMware/VirtualBox) fail to compile against these hardened structures, they are automatically dropped. However, native Type-2 engines (KVM, Incus, Docker, and Podman) remain fully operational, giving you a maximally defensive fortress for detonating highly evasive threats.
 
