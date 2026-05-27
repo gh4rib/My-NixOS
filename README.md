@@ -27,6 +27,131 @@ To prevent container breakouts and host compromise during malware analysis, this
 * **Network Stack Lockdown:** Enforces strict Reverse Path Filtering (`rp_filter=1`) to drop spoofed packets and ignores rogue ICMP redirects to prevent the host from being manipulated by simulated network attacks.
 * **Exploit Mitigation:** Randomizes kernel stack offsets, shuffles page allocator freelists, and forces Page Table Isolation (PTI).
 
+### ☢️ Advanced Opt-In Hardening (Audience Beware)
+
+NixSec strikes a deliberate balance between defense-in-depth and functional virtualization. Several highly aggressive `sysctl` and kernel parameters frequently found in enterprise hardening guides have been intentionally excluded from the default `configuration.nix` because they will instantly break the virtualization stack.
+
+If you are modifying this configuration for a non-virtualization workload, you may manually opt-in to the following strict protections:
+
+### 1. The Kernel Lockdown Flags
+Adding `lockdown=confidentiality` to `boot.kernelParams` or setting `security.lockKernelModules = true` prevents the kernel from loading out-of-tree modules.
+* **Why it is disabled:** This permanently breaks proprietary NVIDIA drivers, VMware Workstation, VirtualBox, and Waydroid's Android ashmem integrations.
+
+### 2. User Namespace Restrictions
+Setting `kernel.unprivileged_userns_clone = 0` in `sysctl` prevents normal users from creating new namespaces.
+* **Why it is disabled:** Modern containerization relies heavily on unprivileged user namespaces. Disabling this completely destroys rootless Podman, Docker, and LXC execution.
+
+### 3. Network Routing Restrictions
+Setting `net.ipv4.ip_forward = 0` prevents the Linux host from acting as a router.
+* **Why it is disabled:** Incus, Docker, and KVM rely on IP forwarding to provide NAT and bridged internet access to your virtual machines. Disabling this severs your lab's network connections.
+
+### 4. Strict Systemd Sandboxing
+While custom host-level scripts should be heavily sandboxed, **do not** apply strict `systemd` isolation (such as `PrivateDevices=true`, `ProtectKernelModules=true`, or `RestrictNamespaces=true`) to hypervisor daemons like `libvirtd`, `incus`, or `docker`. These engines require raw kernel-level privileges to construct hardware overlays for your virtual machines. 
+
+**For custom network-facing scripts on your host, use this baseline systemd hardening template:**
+```nix
+systemd.services.my-custom-service = {
+  serviceConfig = {
+    ProtectSystem = "strict";
+    ProtectHome = true;
+    PrivateTmp = true;
+    NoNewPrivileges = true;
+    ProtectKernelTunables = true;
+    ProtectKernelModules = true;
+    ProtectControlGroups = true;
+    RestrictNamespaces = true;
+    SystemCallArchitectures = "native";
+    SystemCallFilter = [ "@system-service" "~@privileged @resources" ];
+  };
+};
+```
+
+### The "Paranoid" Service Blueprint
+
+When you write custom services (e.g., an automated malware fetcher script, a local log parser, or a custom API on your host), you should apply a strict sandbox. `systemd` uses the Linux kernel's cgroups, namespaces, and seccomp filters to achieve this.
+
+Here is an example of how to declare a nearly bulletproof custom service in your `configuration.nix`:
+
+```nix
+  # Example: A custom host service restricted to the absolute minimum privileges
+  systemd.services.my-secure-daemon = {
+    description = "Isolated Analyst Script";
+    wantedBy = [ "multi-user.target" ];
+    
+    serviceConfig = {
+      ExecStart = "${pkgs.python3}/bin/python /opt/my-script.py";
+      
+      # --- The Systemd Security Sandbox ---
+      
+      # 1. File System Isolation
+      ProtectSystem = "strict";     # Mounts /, /usr, and /boot as read-only.
+      ProtectHome = true;           # Prevents any access to /home, /root, and /run/user.
+      PrivateTmp = true;            # Gives the service its own isolated /tmp and /var/tmp.
+      ReadWritePaths = [ "/var/log/my-script/" ]; # The ONLY place it can write.
+
+      # 2. Network Isolation (If the script doesn't need internet)
+      PrivateNetwork = true;        # Disconnects it from the host network stack (loopback only).
+
+      # 3. Privilege Escalation Prevention
+      NoNewPrivileges = true;       # The service and its children cannot gain new privileges (e.g., via setuid).
+      ProtectKernelTunables = true; # Mounts /sys and /proc/sys as read-only.
+      ProtectKernelModules = true;  # Prevents the service from loading new kernel modules.
+      ProtectControlGroups = true;  # Makes the cgroup hierarchies read-only.
+
+      # 4. Capability & Hardware Dropping
+      CapabilityBoundingSet = "";   # Drops all root capabilities (like CAP_NET_ADMIN or CAP_SYS_ADMIN).
+      PrivateDevices = true;        # Hides physical hardware devices in /dev (exposes only /dev/null, /dev/urandom, etc.).
+      
+      # 5. Syscall Filtering (Seccomp)
+      SystemCallArchitectures = "native";
+      SystemCallFilter = [ 
+        "@system-service"           # Allows standard service syscalls...
+        "~@privileged @resources"   # ...but explicitly blocks privileged and resource-altering syscalls.
+      ];
+    };
+  };
+
+```
+
+### Hardening Existing NixOS Services
+You can run ``systemd-analyze security`` to see a beautiful :) evaluation of Linux services against sandboxing and privilege-related settings which generate a security exposure score between 0.0 (most secure) and 10.0 (highly exposed or unsafe for each of the systemd services.
+
+You can dynamically inject these security parameters into services that NixOS creates automatically, without rewriting the entire service file. This is done using `systemd.services.<name>.serviceConfig`.
+
+For example, to harden the `sshd` (OpenSSH) daemon on your host so that even if an authentication bypass occurs, the daemon cannot alter kernel tunables or access device nodes:
+
+```nix
+  # Inject strict sandboxing into the native SSH daemon
+  systemd.services.sshd.serviceConfig = {
+    ProtectKernelTunables = true;
+    ProtectKernelModules = true;
+    ProtectControlGroups = true;
+    PrivateDevices = true;
+    NoNewPrivileges = true;
+    RestrictRealtime = true;     # Prevents the service from monopolizing CPU scheduling
+    RestrictNamespaces = true;   # Prevents the service from creating new namespaces (container breakout mitigation)
+  };
+
+```
+
+### The Danger Zone: Virtualization Conflicts
+
+Because you are building a **full-stack virtualization lab**, you must be incredibly careful where you apply `systemd` sandboxing.
+
+**DO NOT apply strict `systemd` hardening to these services:**
+
+* `libvirtd.service` (KVM/QEMU)
+* `incus.service`
+* `docker.service` / `podman.service`
+* `waydroid-container.service`
+
+**Why?** Hypervisors and container runtimes *require* the exact privileges that systemd sandboxing blocks. They need to mount `/dev/net/tun` for bridge networking, they need `CAP_SYS_ADMIN` to create new kernel namespaces for their containers, and they need to load kernel modules (`kvm_intel`, `vhost_net`). If you apply `PrivateDevices = true` or `RestrictNamespaces = true` to Docker or Libvirt, your entire lab will instantly break.
+
+**The Strategy:** Let the hypervisors run with the high privileges they need. Focus your `systemd` host hardening exclusively on **network-facing services** (like SSH, Syncthing, or custom web servers) and **automated parsers** that interact with untrusted malware data on the host.
+
+
+Please review these links to get some additional information about them: [link1](https://github.com/klaver/sysctl), [link2](https://obscurix.github.io/security/kernel-hardening.html), [link3](https://docs.rockylinux.org/10/guides/security/systemd_hardening/)
+
 ---
 
 ## 🏗️ The Virtualization Arsenal
