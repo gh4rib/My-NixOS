@@ -24,30 +24,41 @@
   boot.loader.efi.efiSysMountPoint = "/boot/efi";
   boot.initrd.systemd.enable = true;
 
-  security.sudo.execWheelOnly = true;
-
   # --- Official Latest Kernel ---
   boot.kernelPackages = pkgs.linuxPackages_latest;
-  boot.protectKernelImage = true;
 
+  # --- Global Host Hardening (Virt-Safe) ---
+  # These parameters harden the host kernel while maintaining full compatibility
+  # with KVM, VMware, VirtualBox, and container runtimes.
   boot.kernelParams = [
-    "splash"
-    "quit"
-#    "debugfs=off"
-#    "init_on_alloc=1"
-#    "init_on_free=1"
-#    "page_alloc.shuffle=1"
-#    "slab_nomerge"
-#    "pti=on"
-#    "kaslr"
-#    "randomize_kstack_offset=on"
-#    "vsyscall=none"
+    "init_on_alloc=1"          # Sanitizes memory pages on allocation to prevent data leaks
+    "init_on_free=1"           # Sanitizes memory pages on free to eliminate use-after-free remnants
+    "page_alloc.shuffle=1"     # Randomizes page allocator freelists to disrupt exploitation targeting
+    "slab_nomerge"             # Disables slab merging to prevent heap exploitation side-channels
+    "randomize_kstack_offset=on" # Randomizes kernel stack offset on every system call
+    "vsyscall=none"            # Disables legacy vsyscalls completely (obsolete exploit vector)
+    "pti=on"                   # Forces Page Table Isolation to mitigate Meltdown-style side channels
   ];
+
   boot.kernel.sysctl = {
-    "kernel.kptr_restrict" = 2;
-    "kernel.dmesg_restrict" = 1;
-#    "kernel.unprivileged_bpf_disabled" = 1;
+    # Information Leak Mitigations
+    "kernel.kptr_restrict" = 2;          # Completely hides kernel pointers from unprivileged users
+    "kernel.dmesg_restrict" = 1;         # Restricts dmesg access to root/wheel users
+    "kernel.unprivileged_bpf_disabled" = 1; # Prevents unprivileged users from executing eBPF (spectre mitigation)
+    "net.core.bpf_jit_harden" = 2;       # Enforces strict JIT hardening for all users
+
+    # Network Stack Hardening
+    "net.ipv4.conf.all.rp_filter" = 1;   # Enables strict reverse path filtering to prevent IP spoofing
+    "net.ipv4.conf.default.rp_filter" = 1;
+    "net.ipv4.conf.all.accept_redirects" = 0; # Ignores ICMP redirect route alterations
+    "net.ipv6.conf.all.accept_redirects" = 0;
+    "net.ipv4.conf.all.secure_redirects" = 0;
+    "net.ipv4.conf.all.send_redirects" = 0;   # Host will not act as a rogue router
   };
+
+  # Host-level Security Knobs
+  security.sudo.execWheelOnly = true;    # Prevents non-wheel users from even attempting sudo execution
+  security.protectKernelImage = true;    # Protects the kernel image in memory from being modified post-boot
 
   # --- Nix Package Manager Settings ---
   nix.settings.substituters = lib.mkForce [ 
@@ -68,7 +79,7 @@
   time.timeZone = "Asia/Tehran";
   i18n.defaultLocale = "en_US.UTF-8";
 
-  # --- Hardware Security ---
+  # --- Hardware Security & Mandatory Access Control ---
   security.tpm2.enable = true;
   security.tpm2.pkcs11.enable = true;
   security.tpm2.tctiEnvironment.enable = true;
@@ -80,45 +91,38 @@
     enable = true;
     enable32Bit = true;
     extraPackages = with pkgs; [
-      # Video Decoding
       intel-media-driver 
       intel-vaapi-driver 
-      
-      # Quick Sync Video (QSV) explicitly for 10th Gen & Older
       intel-media-sdk 
-      
-      # OpenCL Compute explicitly for Gen8 - Gen11 architectures
-      intel-compute-runtime-legacy1
+      intel-compute-runtime-legacy1 # Pinned for Gen11 Graphics on Ice Lake CPU
+      libvdpau-va-gl
       nvidia-vaapi-driver
     ];
     extraPackages32 = with pkgs.pkgsi686Linux; [
+      intel-media-driver
       intel-vaapi-driver
+      libvdpau-va-gl
     ];
   };
 
   # --- Environment Variables (Wayland & Hardware Routing) ---
   environment.sessionVariables = {
-    # Force video playback to use the Intel iGPU, bypassing NVIDIA for efficiency
     LIBVA_DRIVER_NAME = "iHD";
+    NIXOS_OZONE_WL = "1"; # Forces native Wayland on Chromium/Electron
   };
 
   # --- Graphics: NVIDIA MX110 Proprietary Hybrid ---
   services.xserver.enable = true;
-  
-  # "modesetting" MUST be explicitly listed before "nvidia" for Offload mode
   services.xserver.videoDrivers = [ "modesetting" "nvidia" ];
-  
+
+  hardware.enableRedistributableFirmware = true;  
   hardware.nvidia = {
-    # Modesetting is strictly required for Wayland support on NVIDIA
     modesetting.enable = true;
     open = false; 
     nvidiaSettings = true;
-    
-    # Power management allowed, but finegrained MUST be false for Maxwell (MX110)
     powerManagement.enable = false;
-    powerManagement.finegrained = false; 
-    
-    # Explicitly pin to the 580 branch to prevent 590+ breakage
+    powerManagement.finegrained = false; # Maxwell architecture does not support finegrained power off
+
     package = config.boot.kernelPackages.nvidiaPackages.legacy_580; 
 
     prime = {
@@ -126,14 +130,12 @@
         enable = true;
         enableOffloadCmd = true; 
       };
-      # RUN `lspci` to verify these numbers. Example: 00:02.0 becomes 0@0:2:0
       intelBusId = "PCI:0@0:2:0";
       nvidiaBusId = "PCI:1@0:0:0";
     };
   };
 
   # --- Desktop Environment & Audio ---
-  # GDM natively uses Wayland by default. 
   services.displayManager.gdm.enable = true;
   services.desktopManager.gnome.enable = true;
   services.xserver.xkb.layout = "us";
@@ -177,7 +179,7 @@
     defaultNetwork.settings.dns_enabled = true;
   };
 
-  # Incus (Configured exactly to your preseed specifications)
+  # Incus (Configured with directory preseed)
   virtualisation.incus = {
     enable = true;
     ui.enable = true;
@@ -213,7 +215,7 @@
             root = {
               path = "/";
               pool = "default";
-              size = "100GiB";
+              size = "35GiB";
               type = "disk";
             };
           };
@@ -228,7 +230,7 @@
   # VMware Workstation
   virtualisation.vmware.host.enable = true;
 
-  # Waydroid (Android Emulation natively on Wayland)
+  # Waydroid
   virtualisation.waydroid.enable = true;
 
   # --- User Configuration ---
@@ -249,9 +251,9 @@
     enable = true;
     enableSSHSupport = true;
   };
-  services.openssh.enable = false;
+  services.openssh.enable = true;
 
-  # Disable GNOME localsearch memory hogs
+  # Disable GNOME localsearch indexing
   systemd.user.services."localsearch-3".enable = lib.mkForce false;
   systemd.user.services."localsearch-control-3".enable = lib.mkForce false;
   systemd.user.services."localsearch-writeback-3".enable = lib.mkForce false;
@@ -271,10 +273,7 @@
     qemu-user qemu qemu_kvm
     podman-compose podman-desktop bridge-utils lxc
     mesa mesa-demos 
-    
-    # Vulkan Support explicitly exposed
     vulkan-tools vulkan-loader vulkan-headers vulkan-validation-layers
-    
     gimp pinta gcc llvm clang papers
     ffmpeg-full shotwell openh264 vlc rhythmbox obs-studio
     curl git alacritty gnome-boxes calibre thunderbird filezilla
@@ -285,22 +284,46 @@
     spice spice-gtk spice-protocol chromium neovim gedit keepassxc
   ];
 
-  # --- Specialisation: Xen Hypervisor + Nouveau ---
+  # --- Boot Specialisations ---
   specialisation = {
+    
+    # 1. The Compartmentalized Hypervisor Mode (Type-1)
     xen-nouveau.configuration = {
       system.nixos.tags = [ "xen-nouveau" ];
-      
       virtualisation.xen.enable = true;
       virtualisation.xen.boot.params = [ "nestedhvm=1" ];
-
-      # Explicitly disable Type-2 hypervisors & Waydroid in Dom0
+      
+      # Explicitly strip Type-2 out-of-tree hypervisors and Waydroid to preserve Dom0 integrity
       virtualisation.virtualbox.host.enable = lib.mkForce false;
       virtualisation.vmware.host.enable = lib.mkForce false;
       virtualisation.waydroid.enable = lib.mkForce false;
-
-      # Force X11/Wayland to use Nouveau, bypassing the proprietary module
+      
       services.xserver.videoDrivers = lib.mkForce [ "modesetting" "nouveau" ];
       hardware.enableRedistributableFirmware = true;
+    };
+
+    # 2. Maximum Hardened Station (Native Virt Only)
+    # Reboots system into upstream linux-hardened. VMware/VirtualBox are dropped, 
+    # but KVM, Incus, Docker, and Podman operate natively under high-defense patches.
+    hardened-workstation.configuration = {
+      system.nixos.tags = [ "hardened-workstation" ];
+      boot.kernelPackages = lib.mkForce pkgs.linuxPackages_hardened;
+
+      # Out-of-tree closed source hypervisors fail compilation against hardened structures.
+      virtualisation.virtualbox.host.enable = lib.mkForce false;
+      virtualisation.vmware.host.enable = lib.mkForce false;
+    };
+
+    # 3. CachyOS BORE Scheduler + AVX512 (v4)
+    cachyos-bore.configuration = {
+      system.nixos.tags = [ "cachyos-bore" ];
+      boot.kernelPackages = lib.mkForce pkgs.cachyosKernels.linuxPackages-cachyos-bore-x86_64-v4;
+    };
+
+    # 4. CachyOS EEVDF (Latest) + AVX512 (v4)
+    cachyos-latest-lto.configuration = {
+      system.nixos.tags = [ "cachyos-latest" ];
+      boot.kernelPackages = lib.mkForce pkgs.cachyosKernels.linuxPackages-cachyos-latest-x86_64-v4;
     };
   };
 
