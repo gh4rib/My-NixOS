@@ -267,7 +267,7 @@
     xen.configuration = {
       system.nixos.tags = [ "xen" ];
       virtualisation.xen.enable = true;
-      virtualisation.xen.boot.params = [ "nestedhvm=1" ];
+      virtualisation.xen.boot.params = [ "dom0=pvh nestedhvm=1" ];
       
       # Explicitly strip Type-2 out-of-tree hypervisors and Waydroid to preserve Dom0 integrity
       virtualisation.virtualbox.host.enable = lib.mkForce false;
