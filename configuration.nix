@@ -107,32 +107,13 @@
   # --- Environment Variables (Wayland & Hardware Routing) ---
   environment.sessionVariables = {
     LIBVA_DRIVER_NAME = "iHD";
-    NIXOS_OZONE_WL = "1"; # Forces native Wayland on Chromium/Electron
+#    NIXOS_OZONE_WL = "1"; # Forces native Wayland on Chromium/Electron
   };
 
-  # --- Graphics: NVIDIA MX110 Proprietary Hybrid ---
   services.xserver.enable = true;
-  services.xserver.videoDrivers = [ "modesetting" "nvidia" ];
+  services.xserver.videoDrivers = [ "modesetting" "nouveau" ];
 
   hardware.enableRedistributableFirmware = true;  
-  hardware.nvidia = {
-    modesetting.enable = true;
-    open = false; 
-    nvidiaSettings = true;
-    powerManagement.enable = false;
-    powerManagement.finegrained = false; # Maxwell architecture does not support finegrained power off
-
-    package = config.boot.kernelPackages.nvidiaPackages.legacy_580; 
-
-    prime = {
-      offload = {
-        enable = true;
-        enableOffloadCmd = true; 
-      };
-      intelBusId = "PCI:0@0:2:0";
-      nvidiaBusId = "PCI:1@0:0:0";
-    };
-  };
 
   # --- Desktop Environment & Audio ---
   services.displayManager.gdm.enable = true;
@@ -214,7 +195,7 @@
             root = {
               path = "/";
               pool = "default";
-              size = "35GiB";
+              size = "100GiB";
               type = "disk";
             };
           };
@@ -269,26 +250,22 @@
     vim wget htop dnsutils btop
     qemu_full qemu-utils OVMFFull
     spice-vdagent virglrenderer seabios-qemu
-    qemu-user qemu qemu_kvm
     podman-compose podman-desktop bridge-utils lxc
-    mesa mesa-demos 
-    vulkan-tools vulkan-loader vulkan-headers vulkan-validation-layers
-    gimp pinta gcc llvm clang papers
+    vulkan-tools
+    gcc llvm clang papers
     ffmpeg-full shotwell openh264 vlc rhythmbox obs-studio
-    curl git alacritty gnome-boxes calibre thunderbird filezilla
-    flameshot shutter hexchat pidgin persepolis qbittorrent qtox
-    claws-mail ghostty go rustc rustfmt ruby lua python3
-    jdk11 jdk25 openvpn3 sstp nodejs cargo cifs-utils
+    curl git alacritty gnome-boxes ghostty python3
+    cifs-utils
     virtiofsd virtio-win virt-manager virt-viewer
-    spice spice-gtk spice-protocol chromium neovim gedit keepassxc
+    spice spice-gtk spice-protocol neovim gedit keepassxc
   ];
 
   # --- Boot Specialisations ---
   specialisation = {
     
     # 1. The Compartmentalized Hypervisor Mode (Type-1)
-    xen-nouveau.configuration = {
-      system.nixos.tags = [ "xen-nouveau" ];
+    xen.configuration = {
+      system.nixos.tags = [ "xen" ];
       virtualisation.xen.enable = true;
       virtualisation.xen.boot.params = [ "nestedhvm=1" ];
       
@@ -297,7 +274,6 @@
       virtualisation.vmware.host.enable = lib.mkForce false;
       virtualisation.waydroid.enable = lib.mkForce false;
       
-      services.xserver.videoDrivers = lib.mkForce [ "modesetting" "nouveau" ];
       hardware.enableRedistributableFirmware = true;
     };
 
