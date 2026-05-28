@@ -30,6 +30,7 @@
   # These parameters harden the host kernel while maintaining full compatibility
   # with KVM, VMware, VirtualBox, and container runtimes.
   boot.kernelParams = [
+    "i915.enable_guc=3"        # Intel GPU Acceleration boot param
     "init_on_alloc=1"          # Sanitizes memory pages on allocation to prevent data leaks
     "init_on_free=1"           # Sanitizes memory pages on free to eliminate use-after-free remnants
     "page_alloc.shuffle=1"     # Randomizes page allocator freelists to disrupt exploitation targeting
@@ -93,13 +94,15 @@
       intel-media-driver 
       intel-vaapi-driver 
 #      intel-media-sdk 
-      intel-compute-runtime-legacy1 # Pinned for Gen11 Graphics on Ice Lake CPU
+      intel-compute-runtime
+      vpl-gpu-rt
       libvdpau-va-gl
       nvidia-vaapi-driver
     ];
     extraPackages32 = with pkgs.pkgsi686Linux; [
       intel-media-driver
       intel-vaapi-driver
+      vpl-gpu-rt
       libvdpau-va-gl
     ];
   };
@@ -107,6 +110,7 @@
   # --- Environment Variables (Wayland & Hardware Routing) ---
   environment.sessionVariables = {
     LIBVA_DRIVER_NAME = "iHD";
+    VDPAU_DRIVER = "va_gl";
 #    NIXOS_OZONE_WL = "1";
   };
 
