@@ -188,9 +188,8 @@ This system comes pre-configured with a multi-tiered virtualization stack, allow
 
 ## 💻 Hardware Architecture & Optimization
 
-* **Wayland First:** Fully configured with `xdg-desktop-portal` and Ozone environment variables to enforce native Wayland rendering for modern applications, minimizing the X11 attack surface.
-* **NVIDIA PRIME Offload:** Runs the desktop securely on the Intel iGPU to preserve battery life, while exposing the NVIDIA GPU via an explicit offload wrapper. Perfect for executing localized, GPU-accelerated workloads (e.g., Hashcat cracking) only when requested.
-* **Legacy Hardware Support:** Explicitly pinned to the `legacy_580` NVIDIA branch and `intel-compute-runtime-legacy1` to ensure perfect OpenCL and CUDA functionality on Gen 10/11 Intel architectures and Maxwell-based GPUs.
+* **Wayland First:** Fully configured with `xdg-desktop-portal` to enforce native Wayland rendering for modern applications, minimizing the X11 attack surface.
+* **NVIDIA PRIME Offload:** Runs the desktop securely on the Intel iGPU to preserve battery life, while exposing the NVIDIA GPU via an explicit offload wrapper. Perfect for executing localized, GPU-accelerated workloads (e.g., Hashcat cracking) only when requested. But beware the nvidia proprietary driver heavily depends on X11 and has minimum support for wayland.
 
 ---
 
