@@ -116,7 +116,7 @@ Here is an example of how to declare a nearly bulletproof custom service in your
 ```
 
 ### Hardening Existing NixOS Services
-You can run ``systemd-analyze security`` to see a beautiful :) evaluation of Linux services against sandboxing and privilege-related settings which generate a security exposure score between 0.0 (most secure) and 10.0 (highly exposed or unsafe for each of the systemd services.
+You can run ``systemd-analyze security`` to see a beautiful :) evaluation of Linux services against sandboxing and privilege-related settings which generate a security exposure score between 0.0 (most secure) and 10.0 (highly exposed or unsafe) for each of the systemd services.
 
 You can dynamically inject these security parameters into services that NixOS creates automatically, without rewriting the entire service file. This is done using `systemd.services.<name>.serviceConfig`.
 
