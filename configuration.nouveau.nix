@@ -95,7 +95,6 @@
 #      intel-media-sdk 
       intel-compute-runtime-legacy1 # Pinned for Gen11 Graphics on Ice Lake CPU
       libvdpau-va-gl
-      nvidia-vaapi-driver
     ];
     extraPackages32 = with pkgs.pkgsi686Linux; [
       intel-media-driver
