@@ -16,7 +16,7 @@ Inspired by the architecture of **Qubes OS**, NixSec empowers analysts to implem
 
 Analysts can easily separate their personal daily routines, corporate communications, and high-risk malware detonation labs into distinct environments. This paradigm ensures that even if a payload successfully executes within a research VM, your core host system and personal data remain completely protected.
 
-Please carefully follow the QubesOS advices [Doc](https://doc.qubes-os.org/en/r4.3/index.html) about managing your VMs, the interaction between the VMs and also try to use a secondary firewall like OPNSense or PfSense [Guide](https://blog.davidvarghese.net/posts/building-home-lab-part-1/) to control the interaction between your VMs.
+Please carefully follow the QubesOS advices [Doc](https://doc.qubes-os.org/en/r4.3/index.html) about managing your VMs and also try to use a secondary firewall like OPNSense or PfSense [Guide](https://blog.davidvarghese.net/posts/building-home-lab-part-1/) to control the traffic between your VMs.
 
 ---
 
