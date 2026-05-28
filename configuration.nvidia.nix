@@ -38,6 +38,9 @@
     "randomize_kstack_offset=on" # Randomizes kernel stack offset on every system call
     "vsyscall=none"            # Disables legacy vsyscalls completely (obsolete exploit vector)
     "pti=on"                   # Forces Page Table Isolation to mitigate Meltdown-style side channels
+    # --- IOMMU & Hardware Virtualization ---
+    "intel_iommu=on"   # Activates the IOMMU translation for Intel VT-d
+    "iommu=pt"         # "Passthrough" mode: maximizes host performance while keeping strict isolation available for VMs
   ];
 
   boot.kernel.sysctl = {
