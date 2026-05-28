@@ -79,6 +79,7 @@
   networking.hostName = "whalers0"; 
   networking.networkmanager.enable = true;
   networking.firewall.enable = true;
+  networking.nftables.enable = true;
   time.timeZone = "Asia/Tehran";
   i18n.defaultLocale = "en_US.UTF-8";
 
